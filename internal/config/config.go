@@ -8,20 +8,15 @@ import (
 )
 
 type Config struct {
-	Server      ServerConfig
-	UserService ServiceConfig
-	Valkey      ValkeyConfig
-	CORS        CORSConfig
+	Server   ServerConfig
+	Valkey   ValkeyConfig
+	Services ServicesConfig
 }
 
 type ServerConfig struct {
 	Port        string
 	Environment string
 	Name        string
-}
-
-type ServiceConfig struct {
-	BaseURL string
 }
 
 type ValkeyConfig struct {
@@ -31,8 +26,8 @@ type ValkeyConfig struct {
 	DB       int
 }
 
-type CORSConfig struct {
-	AllowedOrigin string
+type ServicesConfig struct {
+	UserServiceURL string
 }
 
 func Load() (*Config, error) {
@@ -40,16 +35,9 @@ func Load() (*Config, error) {
 
 	cfg := &Config{
 		Server: ServerConfig{
-			Port:        getEnv("APP_PORT", "8080"),
+			Port:        getEnv("APP_PORT", "8081"),
 			Environment: getEnv("APP_ENV", "development"),
 			Name:        getEnv("APP_NAME", "PATO API Gateway"),
-		},
-
-		UserService: ServiceConfig{
-			BaseURL: getEnv(
-				"USER_SERVICE_URL",
-				"http://localhost:8081",
-			),
 		},
 
 		Valkey: ValkeyConfig{
@@ -59,11 +47,8 @@ func Load() (*Config, error) {
 			DB:       getEnvInt("APP_VALKEY_DB", 0),
 		},
 
-		CORS: CORSConfig{
-			AllowedOrigin: getEnv(
-				"APP_CORS_ORIGIN",
-				"http://localhost:3000",
-			),
+		Services: ServicesConfig{
+			UserServiceURL: getEnv("APP_USER_SERVICE_URL", "http://localhost:8080"),
 		},
 	}
 
