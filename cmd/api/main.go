@@ -5,6 +5,7 @@ import (
 	"log"
 
 	"backend/internal/config"
+	"backend/internal/database"
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/proxy"
@@ -23,9 +24,17 @@ func main() {
 		)
 	}
 
+	valkeyClient, err := database.ConnectValkey(cfg)
+	if err != nil {
+		log.Fatalf(
+			"Failed to connect to valkey: %v",
+			err,
+		)
+	}
+
 	// Servicio encargado de validar tokens
 	authService := services.NewAuthService(
-		cfg.UserService.BaseURL,
+		valkeyClient,
 	)
 
 	// Proxy hacia user-service
