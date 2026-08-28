@@ -22,7 +22,7 @@ func NewReverseProxy(target string) (*httputil.ReverseProxy, error) {
 
 		originalDirector(req)
 
-		req.URL.Path = strings.TrimPrefix(
+		req.URL.Path = "/api/v1" + strings.TrimPrefix(
 			req.URL.Path,
 			"/api",
 		)

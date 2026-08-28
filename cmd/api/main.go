@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	"backend/internal/config"
 	"backend/internal/handlers"
@@ -11,9 +14,25 @@ import (
 	"backend/internal/services"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	godotenv.Load()
+
+	db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatal(err)
+	}
+
+	viewService := services.NewViewService(db)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -23,9 +42,21 @@ func main() {
 		)
 	}
 
+	valkey := redis.NewClient(&redis.Options{
+		Addr:     cfg.Valkey.Addr,
+		Username: cfg.Valkey.Username,
+		Password: cfg.Valkey.Password,
+		DB:       cfg.Valkey.DB,
+	})
+	defer valkey.Close()
+
+	if err := valkey.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("Failed to connect to Valkey: %v", err)
+	}
+
 	// Servicio encargado de validar tokens
 	authService := services.NewAuthService(
-		cfg.UserService.BaseURL,
+		valkey,
 	)
 
 	// Proxy hacia user-service
@@ -121,6 +152,19 @@ func main() {
 			"/password",
 			handlers.ProxyHandler(userProxy),
 		)
+
+		protectedUsers.GET(
+			"/ipm-by-domain",
+			handlers.ViewHandler(viewService, "vw_ipm_by_domain"),
+		)
+		protectedUsers.GET(
+			"/average-deprivations",
+			handlers.ViewHandler(viewService, "vw_average_deprivations"),
+		)
+		protectedUsers.GET(
+			"/deprivations-by-variable",
+			handlers.ViewHandler(viewService, "vw_deprivations_by_variable"),
+		)
 	}
 
 	addr := fmt.Sprintf(
@@ -140,4 +184,5 @@ func main() {
 			err,
 		)
 	}
+
 }
