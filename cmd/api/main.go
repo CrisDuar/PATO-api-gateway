@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"log"
+	"os"
 
 	"backend/internal/config"
 	"backend/internal/database"
@@ -12,9 +15,25 @@ import (
 	"backend/internal/services"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
+	godotenv.Load()
+
+	db, err := sql.Open("pgx", os.Getenv("DATABASE_URL"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	if err := db.Ping(); err != nil {
+		log.Fatal(err)
+	}
+
+	viewService := services.NewViewService(db)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -130,6 +149,19 @@ func main() {
 			"/password",
 			handlers.ProxyHandler(userProxy),
 		)
+
+		protectedUsers.GET(
+			"/ipm-by-domain",
+			handlers.ViewHandler(viewService, "vw_ipm_by_domain"),
+		)
+		protectedUsers.GET(
+			"/average-deprivations",
+			handlers.ViewHandler(viewService, "vw_average_deprivations"),
+		)
+		protectedUsers.GET(
+			"/deprivations-by-variable",
+			handlers.ViewHandler(viewService, "vw_deprivations_by_variable"),
+		)
 	}
 
 	addr := fmt.Sprintf(
@@ -149,4 +181,5 @@ func main() {
 			err,
 		)
 	}
+
 }
