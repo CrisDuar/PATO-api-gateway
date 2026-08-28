@@ -8,6 +8,7 @@ import (
 	"os"
 
 	"backend/internal/config"
+	"backend/internal/database"
 	"backend/internal/handlers"
 	"backend/internal/middleware"
 	"backend/internal/proxy"
@@ -42,21 +43,17 @@ func main() {
 		)
 	}
 
-	valkey := redis.NewClient(&redis.Options{
-		Addr:     cfg.Valkey.Addr,
-		Username: cfg.Valkey.Username,
-		Password: cfg.Valkey.Password,
-		DB:       cfg.Valkey.DB,
-	})
-	defer valkey.Close()
-
-	if err := valkey.Ping(context.Background()).Err(); err != nil {
-		log.Fatalf("Failed to connect to Valkey: %v", err)
+	valkeyClient, err := database.ConnectValkey(cfg)
+	if err != nil {
+		log.Fatalf(
+			"Failed to connect to valkey: %v",
+			err,
+		)
 	}
 
 	// Servicio encargado de validar tokens
 	authService := services.NewAuthService(
-		valkey,
+		valkeyClient,
 	)
 
 	// Proxy hacia user-service
