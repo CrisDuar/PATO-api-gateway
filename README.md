@@ -153,6 +153,7 @@ AuthMiddleware
 | `POST`  | `/api/users/verify-email`       | Verificar correo (proxy)                | No             |
 | `POST`  | `/api/users/forgot-password`    | Solicitar recuperación de contraseña (proxy) | No        |
 | `POST`  | `/api/users/reset-password`     | Restablecer contraseña (proxy)          | No             |
+| `GET`   | `/api/users`                    | Listar todos los usuarios               | Sí             |
 | `GET`   | `/api/users/me`                 | Obtener perfil del usuario autenticado  | Sí             |
 | `POST`  | `/api/users/logout`             | Cerrar sesión                           | Sí             |
 | `PATCH` | `/api/users/email`              | Cambiar el correo del usuario           | Sí             |
@@ -366,7 +367,48 @@ Authorization: Bearer <token>
 
 ---
 
-# 16. Cambio de correo electrónico
+# 16. Listado de usuarios
+
+Permite a cualquier usuario autenticado obtener el listado completo de usuarios registrados.
+
+### Request
+
+```http
+GET http://localhost:8080/api/users
+Authorization: Bearer <token>
+```
+
+No recibe body, ya que es una petición `GET`.
+
+### Respuesta exitosa
+
+```json
+[
+    {
+        "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+        "username": "natalia",
+        "email": "natalia@gmail.com",
+        "created_at": "2026-08-08T..."
+    },
+    {
+        "id": "yyyyyyyy-yyyy-yyyy-yyyy-yyyyyyyyyyyy",
+        "username": "pedro",
+        "email": "pedro@gmail.com",
+        "created_at": "2026-08-07T..."
+    }
+]
+```
+
+### Posibles errores
+
+| Código HTTP | Code                | Causa                                              |
+| ----------- | -------------------- | ----------------------------------------------------- |
+| 401         | `UNAUTHORIZED`        | Falta el token, formato inválido, o no existe en Valkey |
+| 500         | `USERS_LIST_FAILED`   | Error al consultar la base de datos en el microservicio |
+
+---
+
+# 17. Cambio de correo electrónico
 
 Permite a un usuario autenticado actualizar su correo, confirmando su identidad con la contraseña actual.
 
@@ -432,7 +474,7 @@ PATCH /api/users/email
 
 ---
 
-# 17. Cambio de contraseña
+# 18. Cambio de contraseña
 
 ### Request
 
@@ -470,7 +512,7 @@ Authorization: Bearer <token>
 
 ---
 
-# 18. Logout
+# 19. Logout
 
 ### Request
 
@@ -491,7 +533,7 @@ Tras el logout, el token se elimina de Valkey: cualquier petición posterior con
 
 ---
 
-# 19. Flujo completo del sistema
+# 20. Flujo completo del sistema
 
 ```text
                     ┌──────────────┐
@@ -541,7 +583,7 @@ Tras el logout, el token se elimina de Valkey: cualquier petición posterior con
 
 ---
 
-# 20. Consideraciones de seguridad
+# 21. Consideraciones de seguridad
 
 * `APP_VALKEY_PASSWORD` y demás credenciales deben mantenerse fuera del código fuente.
 * El archivo `.env` no debe subirse al repositorio.
@@ -552,7 +594,7 @@ Tras el logout, el token se elimina de Valkey: cualquier petición posterior con
 
 ---
 
-# 21. Resultado
+# 22. Resultado
 
 Con esta implementación, el PATO API Gateway centraliza el enrutamiento y la autenticación de los clientes hacia los microservicios internos:
 

@@ -129,6 +129,11 @@ func main() {
 
 	{
 		protectedUsers.GET(
+			"",
+			handlers.ProxyHandler(userProxy),
+		)
+
+		protectedUsers.GET(
 			"/me",
 			handlers.ProxyHandler(userProxy),
 		)
