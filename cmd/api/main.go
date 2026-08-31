@@ -89,6 +89,8 @@ func main() {
 	// RUTAS PÚBLICAS
 	// =========================
 
+	viewHandler := handlers.NewViewHandler(viewService)
+
 	publicUsers := router.Group("/api/users")
 	{
 		publicUsers.POST(
@@ -115,6 +117,7 @@ func main() {
 			"/reset-password",
 			handlers.ProxyHandler(userProxy),
 		)
+
 	}
 
 	// =========================
@@ -150,15 +153,20 @@ func main() {
 
 		protectedUsers.GET(
 			"/ipm-by-domain",
-			handlers.ViewHandler(viewService, "vw_ipm_by_domain"),
+			handlers.ViewTotalHandler(viewService, "vw_ipm_by_domain"),
 		)
 		protectedUsers.GET(
 			"/average-deprivations",
-			handlers.ViewHandler(viewService, "vw_average_deprivations"),
+			handlers.ViewTotalHandler(viewService, "vw_average_deprivations"),
 		)
 		protectedUsers.GET(
 			"/deprivations-by-variable",
-			handlers.ViewHandler(viewService, "vw_deprivations_by_variable"),
+			handlers.ViewTotalHandler(viewService, "vw_deprivations_by_variable"),
+		)
+
+		protectedUsers.POST(
+			"/filtered",
+			viewHandler.GetViewFilteredData,
 		)
 	}
 
