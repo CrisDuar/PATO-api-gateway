@@ -15,15 +15,32 @@ func NewViewService(db *sql.DB) *ViewService {
 }
 
 var allowedViews = map[string]bool{
-	"vw_ipm_by_domain":            true,
-	"vw_average_deprivations":     true,
-	"vw_deprivations_by_variable": true,
+	"vw_ipm_by_domain":                        true,
+	"vw_average_deprivations":                 true,
+	"vw_deprivations_by_variable":             true,
+	"vw_dashboard03_national_poverty":         true,
+	"vw_dashboard03_poverty_by_age":           true,
+	"vw_dashboard03_deprivation_contribution": true,
+	"vw_dimension_contribution":               true,
+	"vw_incidence_by_household_head_sex":      true,
+	"vw_incidence_by_person_sex":              true,
 }
 
 var allowedColumns = map[string]bool{
-	"anio":     true,
-	"dominio":  true,
-	"variable": true,
+	"anio":             true,
+	"dominio":          true,
+	"variable":         true,
+	"area_geografica":  true,
+	"pais":             true,
+	"grupo_erario":     true,
+	"valor_porcentaje": true,
+	"privacion":        true,
+	"tipo_media_pm":    true,
+	"dimension":        true,
+	"porcentaje":       true,
+	"region":           true,
+	"departamento":     true,
+	"sexo":             true,
 }
 
 func (vs *ViewService) GetViewTotalData(viewName string) ([]map[string]interface{}, error) {
