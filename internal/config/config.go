@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Server      ServerConfig
 	UserService ServiceConfig
+	AIService   ServiceConfig
 	Valkey      ValkeyConfig
 	CORS        CORSConfig
 }
@@ -49,6 +50,13 @@ func Load() (*Config, error) {
 			BaseURL: getEnv(
 				"USER_SERVICE_URL",
 				"http://localhost:8081",
+			),
+		},
+
+		AIService: ServiceConfig{
+			BaseURL: getEnv(
+				"AI_SERVICE_URL",
+				"http://localhost:8000",
 			),
 		},
 

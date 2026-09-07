@@ -17,6 +17,11 @@ type FilterRequest struct {
 	ColumnValue string `json:"columnValue" binding:"required"`
 }
 
+type CategoryQuery struct {
+	ViewName   string `form:"view" binding:"required"`
+	ColumnName string `form:"column" binding:"required"`
+}
+
 func NewViewHandler(viewService *services.ViewService) *ViewHandler {
 	return &ViewHandler{
 		viewService: viewService,
@@ -58,4 +63,30 @@ func (h *ViewHandler) GetViewFilteredData(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, data)
+}
+
+// GetCategories devuelve los valores distintos de una columna dentro de una vista,
+// usado tanto para categorías IPM (dominio, dimension, variable, privacion) como
+// para ubicaciones geográficas (pais, region, departamento, area_geografica).
+func (h *ViewHandler) GetCategories(c *gin.Context) {
+	var query CategoryQuery
+
+	if err := c.ShouldBindQuery(&query); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Se requieren los parámetros 'view' y 'column'",
+		})
+		return
+	}
+
+	values, err := h.viewService.GetDistinctColumnValues(query.ViewName, query.ColumnName)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"values": values,
+	})
 }

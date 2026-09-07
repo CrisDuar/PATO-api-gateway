@@ -93,6 +93,57 @@ func (vs *ViewService) GetViewTotalData(viewName string) ([]map[string]interface
 	return results, nil
 }
 
+// GetDistinctColumnValues devuelve los valores únicos de una columna dentro de una vista,
+// usado para poblar filtros (categorías IPM, ubicación geográfica, etc.).
+func (vs *ViewService) GetDistinctColumnValues(viewName string, columnName string) ([]string, error) {
+	if !allowedViews[viewName] {
+		return nil, fmt.Errorf("vista no permitida: %s", viewName)
+	}
+
+	if !allowedColumns[columnName] {
+		return nil, fmt.Errorf("columna no permitida: %s", columnName)
+	}
+
+	query := fmt.Sprintf(
+		`SELECT DISTINCT "%s" FROM "%s" WHERE "%s" IS NOT NULL ORDER BY "%s" ASC`,
+		columnName,
+		viewName,
+		columnName,
+		columnName,
+	)
+
+	rows, err := vs.db.Query(query)
+	if err != nil {
+		log.Printf("Error executing query: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	values := make([]string, 0)
+
+	for rows.Next() {
+		var raw interface{}
+
+		if err := rows.Scan(&raw); err != nil {
+			log.Printf("Error scanning row: %v", err)
+			return nil, err
+		}
+
+		if raw == nil {
+			continue
+		}
+
+		values = append(values, fmt.Sprintf("%v", raw))
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("Error with rows: %v", err)
+		return nil, err
+	}
+
+	return values, nil
+}
+
 func (vs *ViewService) GetViewFilteredData(
 	viewName string,
 	columnName string,
