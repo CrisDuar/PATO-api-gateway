@@ -157,6 +157,7 @@ AuthMiddleware
 | `GET`   | `/api/users/me`                 | Obtener perfil del usuario autenticado  | Sí             |
 | `POST`  | `/api/users/logout`             | Cerrar sesión                           | Sí             |
 | `PATCH` | `/api/users/email`              | Cambiar el correo del usuario           | Sí             |
+| `PATCH` | `/api/users/username`           | Cambiar el nombre de usuario            | Sí             |
 | `PATCH` | `/api/users/password`           | Cambiar la contraseña del usuario       | Sí             |
 
 ---
@@ -291,6 +292,17 @@ POST http://localhost:8080/api/users/login
 ```
 
 El campo `token` es el que se usa como `Authorization: Bearer <token>` en el resto de endpoints protegidos.
+
+### Respuesta si el correo no está verificado
+
+```json
+{
+    "error": "email not verified",
+    "code": "EMAIL_NOT_VERIFIED"
+}
+```
+
+HTTP `403 Forbidden`. El usuario debe verificar su correo (`/api/users/verify-email`) antes de poder iniciar sesión.
 
 ---
 
@@ -471,6 +483,69 @@ PATCH /api/users/email
 | 400         | `INVALID_REQUEST`       | JSON mal formado                                                        |
 | 400         | `VALIDATION_ERROR`      | `new_email` no es un email válido o falta `password`                    |
 | 400         | `EMAIL_UPDATE_FAILED`   | Contraseña incorrecta, email igual al actual, o email ya registrado    |
+
+---
+
+# 17.1 Cambio de nombre de usuario
+
+Permite a un usuario autenticado actualizar su nombre de usuario (`username`).
+
+### Request
+
+```http
+PATCH http://localhost:8080/api/users/username
+Authorization: Bearer <token>
+```
+
+### Body
+
+```json
+{
+    "new_username": "natalia_nueva"
+}
+```
+
+### Flujo
+
+```text
+PATCH /api/users/username
+          │
+          ▼
+   AuthMiddleware (valida token contra Valkey, agrega X-User-ID)
+          │
+          ▼
+    Proxy hacia el microservicio de usuarios
+          │
+          ▼
+   Actualización del username
+          │
+          ├── Buscar usuario por ID
+          ├── Rechazar si new_username == username actual
+          └── Actualizar username
+                    │
+                    ▼
+              Respuesta HTTP
+```
+
+### Respuesta exitosa
+
+```json
+{
+    "id": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",
+    "username": "natalia_nueva",
+    "email": "natalia@gmail.com",
+    "created_at": "2026-08-08T..."
+}
+```
+
+### Posibles errores
+
+| Código HTTP | Code                     | Causa                                                                 |
+| ----------- | ------------------------ | ---------------------------------------------------------------------- |
+| 401         | `UNAUTHORIZED`           | Falta el token, formato inválido, o no existe en Valkey                |
+| 400         | `INVALID_REQUEST`        | JSON mal formado                                                        |
+| 400         | `VALIDATION_ERROR`       | `new_username` vacío o fuera del rango de 2 a 50 caracteres             |
+| 400         | `USERNAME_UPDATE_FAILED` | `new_username` igual al actual, o usuario no encontrado                |
 
 ---
 

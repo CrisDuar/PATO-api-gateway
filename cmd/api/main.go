@@ -156,6 +156,11 @@ func main() {
 		)
 
 		protectedUsers.PATCH(
+			"/username",
+			handlers.ProxyHandler(userProxy),
+		)
+
+		protectedUsers.PATCH(
 			"/password",
 			handlers.ProxyHandler(userProxy),
 		)
@@ -206,6 +211,12 @@ func main() {
 		protectedUsers.POST(
 			"/filtered",
 			viewHandler.GetViewFilteredData,
+		)
+
+		// Historia: Filtrar por 2 o más categorías a la vez (ej. dominio + pais)
+		protectedUsers.POST(
+			"/filtered/multi",
+			viewHandler.GetViewFilteredDataMulti,
 		)
 
 		// Historia: Filtrar por categoría IPM / Filtrar por ubicación
