@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 )
 
 type ViewService struct {
@@ -93,6 +94,57 @@ func (vs *ViewService) GetViewTotalData(viewName string) ([]map[string]interface
 	return results, nil
 }
 
+// GetDistinctColumnValues devuelve los valores únicos de una columna dentro de una vista,
+// usado para poblar filtros (categorías IPM, ubicación geográfica, etc.).
+func (vs *ViewService) GetDistinctColumnValues(viewName string, columnName string) ([]string, error) {
+	if !allowedViews[viewName] {
+		return nil, fmt.Errorf("vista no permitida: %s", viewName)
+	}
+
+	if !allowedColumns[columnName] {
+		return nil, fmt.Errorf("columna no permitida: %s", columnName)
+	}
+
+	query := fmt.Sprintf(
+		`SELECT DISTINCT "%s" FROM "%s" WHERE "%s" IS NOT NULL ORDER BY "%s" ASC`,
+		columnName,
+		viewName,
+		columnName,
+		columnName,
+	)
+
+	rows, err := vs.db.Query(query)
+	if err != nil {
+		log.Printf("Error executing query: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	values := make([]string, 0)
+
+	for rows.Next() {
+		var raw interface{}
+
+		if err := rows.Scan(&raw); err != nil {
+			log.Printf("Error scanning row: %v", err)
+			return nil, err
+		}
+
+		if raw == nil {
+			continue
+		}
+
+		values = append(values, fmt.Sprintf("%v", raw))
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("Error with rows: %v", err)
+		return nil, err
+	}
+
+	return values, nil
+}
+
 func (vs *ViewService) GetViewFilteredData(
 	viewName string,
 	columnName string,
@@ -120,6 +172,60 @@ func (vs *ViewService) GetViewFilteredData(
 	}
 	defer rows.Close()
 
+	return scanRows(rows)
+}
+
+// ColumnFilter representa un par columna/valor usado para filtrar una vista.
+type ColumnFilter struct {
+	ColumnName  string
+	ColumnValue string
+}
+
+// GetViewFilteredDataMulti filtra una vista por dos o más columnas a la vez
+// (ej. dominio + pais + anio), combinando las condiciones con AND.
+func (vs *ViewService) GetViewFilteredDataMulti(
+	viewName string,
+	filters []ColumnFilter,
+) ([]map[string]interface{}, error) {
+
+	if !allowedViews[viewName] {
+		return nil, fmt.Errorf("vista no permitida: %s", viewName)
+	}
+
+	if len(filters) == 0 {
+		return nil, fmt.Errorf("se requiere al menos un filtro")
+	}
+
+	conditions := make([]string, 0, len(filters))
+	args := make([]interface{}, 0, len(filters))
+
+	for i, f := range filters {
+		if !allowedColumns[f.ColumnName] {
+			return nil, fmt.Errorf("columna no permitida: %s", f.ColumnName)
+		}
+		conditions = append(conditions, fmt.Sprintf(`"%s" = $%d`, f.ColumnName, i+1))
+		args = append(args, f.ColumnValue)
+	}
+
+	query := fmt.Sprintf(
+		`SELECT * FROM "%s" WHERE %s ORDER BY "anio" ASC`,
+		viewName,
+		strings.Join(conditions, " AND "),
+	)
+
+	rows, err := vs.db.Query(query, args...)
+	if err != nil {
+		log.Printf("Error executing query: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	return scanRows(rows)
+}
+
+// scanRows vuelca las filas de un *sql.Rows en []map[string]interface{},
+// usando los nombres de columna como llaves.
+func scanRows(rows *sql.Rows) ([]map[string]interface{}, error) {
 	columns, err := rows.Columns()
 	if err != nil {
 		log.Printf("Error getting columns: %v", err)
