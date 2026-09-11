@@ -159,6 +159,9 @@ AuthMiddleware
 | `PATCH` | `/api/users/email`              | Cambiar el correo del usuario           | Sí             |
 | `PATCH` | `/api/users/username`           | Cambiar el nombre de usuario            | Sí             |
 | `PATCH` | `/api/users/password`           | Cambiar la contraseña del usuario       | Sí             |
+| `POST`  | `/api/users/filtered`           | Filtrar una vista por 1 columna/valor   | Sí             |
+| `POST`  | `/api/users/filtered/multi`     | Filtrar una vista por 2 o más columnas/valores | Sí      |
+| `GET`   | `/api/users/categories`         | Obtener los valores distintos de una columna (para poblar filtros) | Sí |
 
 ---
 
@@ -605,6 +608,187 @@ Authorization: Bearer <token>
 ```
 
 Tras el logout, el token se elimina de Valkey: cualquier petición posterior con ese mismo token responde `401`.
+
+---
+
+# 19.1 Datos filtrados de dashboards
+
+Estos endpoints permiten consultar las vistas de PostgreSQL que alimentan los dashboards (IPM, privaciones, pobreza nacional, etc.), filtrando por una o varias columnas a la vez. Tanto la vista (`viewName`) como cada columna (`columnName`) se validan contra listas blancas en el servicio — cualquier valor fuera de estas listas es rechazado antes de tocar la base de datos.
+
+**Vistas permitidas (`viewName`):**
+
+* `vw_ipm_by_domain`
+* `vw_average_deprivations`
+* `vw_deprivations_by_variable`
+* `vw_dashboard03_national_poverty`
+* `vw_dashboard03_poverty_by_age`
+* `vw_dashboard03_deprivation_contribution`
+* `vw_dimension_contribution`
+* `vw_incidence_by_household_head_sex`
+* `vw_incidence_by_person_sex`
+
+**Columnas permitidas (`columnName`):**
+
+`anio`, `dominio`, `variable`, `area_geografica`, `pais`, `grupo_erario`, `valor_porcentaje`, `privacion`, `tipo_medida_pm`, `dimension`, `porcentaje`, `region`, `departamento`, `sexo`
+
+> Todos los valores de filtro (`columnValue`) se envían como **string**, incluso los años (`"2010"`, no `2010`) — el binding del gateway rechaza tipos numéricos con `400 Bad Request`.
+
+---
+
+## 19.1.1 Filtrar por 1 columna
+
+### Request
+
+```http
+POST http://localhost:8080/api/users/filtered
+Authorization: Bearer <token>
+```
+
+### Body
+
+```json
+{
+    "viewName": "vw_dashboard03_national_poverty",
+    "columnName": "pais",
+    "columnValue": "Chile"
+}
+```
+
+### Respuesta exitosa
+
+```json
+[
+    {
+        "anio": 2009,
+        "area_geografica": "National",
+        "pais": "Chile",
+        "tipo_medida_pm": "Incidencia (H)",
+        "valor_porcentaje": "27.000000"
+    }
+]
+```
+
+### Posibles errores
+
+| Código HTTP | Causa                                                        |
+| ----------- | ------------------------------------------------------------- |
+| 401         | Falta el token, formato inválido, o no existe en Valkey        |
+| 400         | JSON mal formado o faltan `viewName` / `columnName` / `columnValue` |
+| 400         | `viewName` o `columnName` no están en la lista blanca           |
+
+---
+
+## 19.1.2 Filtrar por 2 o más columnas
+
+### Request
+
+```http
+POST http://localhost:8080/api/users/filtered/multi
+Authorization: Bearer <token>
+```
+
+### Body
+
+```json
+{
+    "viewName": "vw_dashboard03_national_poverty",
+    "filters": [
+        { "columnName": "anio", "columnValue": "2009" },
+        { "columnName": "pais", "columnValue": "Chile" }
+    ]
+}
+```
+
+Las condiciones se combinan con `AND`. Se requieren al menos 2 filtros; para filtrar por una sola columna usa `/filtered` en su lugar.
+
+### Flujo
+
+```text
+POST /api/users/filtered/multi
+          │
+          ▼
+   AuthMiddleware (valida token contra Valkey)
+          │
+          ▼
+   Validar viewName y cada columnName contra la lista blanca
+          │
+          ▼
+   Construir WHERE col1 = $1 AND col2 = $2 ... (parámetros posicionales)
+          │
+          ▼
+   Consultar la vista en PostgreSQL
+          │
+          ▼
+     Respuesta HTTP
+```
+
+### Respuesta exitosa
+
+```json
+[
+    {
+        "anio": 2009,
+        "area_geografica": "National",
+        "pais": "Chile",
+        "tipo_medida_pm": "Incidencia (H)",
+        "valor_porcentaje": "27.000000"
+    },
+    {
+        "anio": 2009,
+        "area_geografica": "Urban",
+        "pais": "Chile",
+        "tipo_medida_pm": "Incidencia (H)",
+        "valor_porcentaje": "25.000000"
+    },
+    {
+        "anio": 2009,
+        "area_geografica": "Rural",
+        "pais": "Chile",
+        "tipo_medida_pm": "Incidencia (H)",
+        "valor_porcentaje": "44.000000"
+    }
+]
+```
+
+Si ninguna fila cumple todos los filtros a la vez, la respuesta es `200 OK` con `null` (no un error).
+
+### Posibles errores
+
+| Código HTTP | Causa                                                                    |
+| ----------- | --------------------------------------------------------------------------- |
+| 401         | Falta el token, formato inválido, o no existe en Valkey                    |
+| 400         | JSON mal formado, falta `viewName`, o `filters` tiene menos de 2 elementos    |
+| 400         | `viewName` o algún `columnName` no están en la lista blanca                  |
+| 400         | Algún `columnValue` no se envió como string (ej. `2010` en vez de `"2010"`)  |
+
+---
+
+## 19.1.3 Obtener valores para poblar los filtros
+
+Devuelve los valores distintos de una columna dentro de una vista — usado para llenar los selectores del frontend (categorías IPM, ubicación geográfica, etc.) antes de aplicar `/filtered` o `/filtered/multi`.
+
+### Request
+
+```http
+GET http://localhost:8080/api/users/categories?view=vw_dashboard03_national_poverty&column=pais
+Authorization: Bearer <token>
+```
+
+### Respuesta exitosa
+
+```json
+{
+    "values": ["Argentina", "Chile", "Colombia", "..."]
+}
+```
+
+### Posibles errores
+
+| Código HTTP | Causa                                                        |
+| ----------- | --------------------------------------------------------------- |
+| 401         | Falta el token, formato inválido, o no existe en Valkey            |
+| 400         | Faltan los parámetros `view` o `column`                             |
+| 400         | `view` o `column` no están en la lista blanca                       |
 
 ---
 

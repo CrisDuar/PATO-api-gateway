@@ -36,7 +36,7 @@ var allowedColumns = map[string]bool{
 	"grupo_erario":     true,
 	"valor_porcentaje": true,
 	"privacion":        true,
-	"tipo_media_pm":    true,
+	"tipo_medida_pm":   true,
 	"dimension":        true,
 	"porcentaje":       true,
 	"region":           true,
