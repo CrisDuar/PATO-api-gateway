@@ -25,6 +25,7 @@ var allowedViews = map[string]bool{
 	"vw_dimension_contribution":               true,
 	"vw_incidence_by_household_head_sex":      true,
 	"vw_incidence_by_person_sex":              true,
+	"vw_household_poverty_by_department":      true,
 }
 
 var allowedColumns = map[string]bool{
