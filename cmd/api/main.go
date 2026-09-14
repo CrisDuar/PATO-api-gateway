@@ -118,6 +118,11 @@ func main() {
 		)
 
 		publicUsers.POST(
+			"/verify-reset-token",
+			handlers.ProxyHandler(userProxy),
+		)
+
+		publicUsers.POST(
 			"/reset-password",
 			handlers.ProxyHandler(userProxy),
 		)
@@ -206,6 +211,11 @@ func main() {
 		protectedUsers.GET(
 			"/incidence-by-person-sex",
 			handlers.ViewTotalHandler(viewService, "vw_incidence_by_person_sex"),
+		)
+
+		protectedUsers.GET(
+			"/household-poverty-by-department",
+			handlers.ViewTotalHandler(viewService, "vw_household_poverty_by_department"),
 		)
 
 		protectedUsers.POST(
