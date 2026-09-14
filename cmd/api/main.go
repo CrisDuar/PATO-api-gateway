@@ -118,6 +118,11 @@ func main() {
 		)
 
 		publicUsers.POST(
+			"/verify-reset-token",
+			handlers.ProxyHandler(userProxy),
+		)
+
+		publicUsers.POST(
 			"/reset-password",
 			handlers.ProxyHandler(userProxy),
 		)

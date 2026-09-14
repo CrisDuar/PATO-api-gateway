@@ -152,6 +152,7 @@ AuthMiddleware
 | `POST`  | `/api/users/login`              | Iniciar sesión y obtener token (proxy)  | No             |
 | `POST`  | `/api/users/verify-email`       | Verificar correo (proxy)                | No             |
 | `POST`  | `/api/users/forgot-password`    | Solicitar recuperación de contraseña (proxy) | No        |
+| `POST`  | `/api/users/verify-reset-token` | Verificar que el token de recuperación sea válido (proxy) | No |
 | `POST`  | `/api/users/reset-password`     | Restablecer contraseña (proxy)          | No             |
 | `GET`   | `/api/users`                    | Listar todos los usuarios               | Sí             |
 | `GET`   | `/api/users/me`                 | Obtener perfil del usuario autenticado  | Sí             |
@@ -240,7 +241,9 @@ POST http://localhost:8080/api/users/verify-email
 
 # 10. Recuperación de contraseña
 
-### Request — solicitar token
+El flujo tiene dos pasos **secuenciales**: primero se verifica el código recibido por correo, y esa verificación entrega un `reset_token` de sesión de un solo uso. El segundo paso cambia la contraseña usando ese `reset_token` — ya no hace falta reenviar el código original.
+
+### Paso 0 — Request: solicitar el código por correo
 
 ```http
 POST http://localhost:8080/api/users/forgot-password
@@ -252,7 +255,54 @@ POST http://localhost:8080/api/users/forgot-password
 }
 ```
 
-### Request — restablecer con el token recibido
+### Respuesta
+
+```json
+{
+    "message": "If the email is registered, a password reset token has been sent"
+}
+```
+
+Si el correo existe, se genera un código numérico, se guarda en Valkey con un TTL de 15 minutos y se envía por correo. Por seguridad, la respuesta es la misma exista o no el correo.
+
+### Paso 1 — Request: verificar el código
+
+```http
+POST http://localhost:8080/api/users/verify-reset-token
+```
+
+```json
+{
+    "token": "CODIGO_RECIBIDO_POR_CORREO"
+}
+```
+
+Si el código es válido, se consume (uso único) y se emite un `reset_token` de sesión (TTL 10 minutos) que identifica al usuario para el siguiente paso.
+
+### Respuesta exitosa
+
+```json
+{
+    "valid": true,
+    "reset_token": "RESET_TOKEN_DE_SESION",
+    "message": "Token is valid"
+}
+```
+
+### Respuesta si el código es inválido o expiró
+
+```json
+{
+    "error": "invalid or expired token",
+    "code": "INVALID_RESET_TOKEN"
+}
+```
+
+HTTP `400 Bad Request`.
+
+### Paso 2 — Request: cambiar la contraseña con el `reset_token`
+
+Ya **no** se envía el código original, solo el `reset_token` obtenido en el paso anterior.
 
 ```http
 POST http://localhost:8080/api/users/reset-password
@@ -260,11 +310,30 @@ POST http://localhost:8080/api/users/reset-password
 
 ```json
 {
-    "token": "TOKEN_RECIBIDO_POR_CORREO",
+    "reset_token": "RESET_TOKEN_DE_SESION",
     "password": "NuevaPassword456!",
     "confirm_password": "NuevaPassword456!"
 }
 ```
+
+### Respuesta exitosa
+
+```json
+{
+    "message": "Password reset successfully"
+}
+```
+
+El `reset_token` solo puede usarse una vez: al restablecer la contraseña se elimina de Valkey.
+
+### Posibles errores
+
+| Código HTTP | Code                     | Causa                                              |
+| ----------- | ------------------------ | ----------------------------------------------------- |
+| 400         | `INVALID_REQUEST`        | JSON mal formado                                       |
+| 400         | `VALIDATION_ERROR`       | Falta `token`/`reset_token`, o `password`/`confirm_password` no cumplen las reglas |
+| 400         | `INVALID_RESET_TOKEN`    | Código inexistente, expirado o ya utilizado (`verify-reset-token`) |
+| 400         | `PASSWORD_RESET_FAILED`  | `reset_token` inexistente, expirado o ya utilizado (`reset-password`) |
 
 ---
 
