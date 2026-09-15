@@ -67,7 +67,7 @@ func main() {
 	}
 
 	// Servicio para consumir la API de IA (predicciones)
-	predictionService := services.NewPredictionService(cfg.AIService.BaseURL)
+	aiService := services.NewAIService(cfg.AIService.BaseURL)
 
 	router := gin.Default()
 
@@ -93,7 +93,7 @@ func main() {
 	// =========================
 
 	viewHandler := handlers.NewViewHandler(viewService)
-	predictionHandler := handlers.NewPredictionHandler(predictionService)
+	aiHandler := handlers.NewAIHandler(aiService)
 
 	publicUsers := router.Group("/api/users")
 	{
@@ -239,7 +239,7 @@ func main() {
 		// Historia: Visualizar predicción (consume la API de IA)
 		protectedUsers.POST(
 			"/predictions/:type",
-			predictionHandler.Predict,
+			aiHandler.Predict,
 		)
 	}
 

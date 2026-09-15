@@ -9,19 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type PredictionHandler struct {
-	predictionService *services.PredictionService
+type AIHandler struct {
+	aiService *services.AIService
 }
 
-func NewPredictionHandler(predictionService *services.PredictionService) *PredictionHandler {
-	return &PredictionHandler{
-		predictionService: predictionService,
+func NewAIHandler(aiService *services.AIService) *AIHandler {
+	return &AIHandler{
+		aiService: aiService,
 	}
 }
 
 // Predict reenvía la solicitud de predicción a la API de IA (POST /predictions/:type)
 // y traduce sus fallos a respuestas HTTP consistentes para el cliente.
-func (h *PredictionHandler) Predict(c *gin.Context) {
+func (h *AIHandler) Predict(c *gin.Context) {
 	predictionType := c.Param("type")
 
 	var payload map[string]interface{}
@@ -32,7 +32,7 @@ func (h *PredictionHandler) Predict(c *gin.Context) {
 		return
 	}
 
-	data, err := h.predictionService.Predict(predictionType, payload)
+	data, err := h.aiService.Predict(predictionType, payload)
 	if err != nil {
 		var upstreamErr *services.PredictionUpstreamError
 

@@ -10,13 +10,13 @@ import (
 	"time"
 )
 
-type PredictionService struct {
+type AIService struct {
 	baseURL    string
 	httpClient *http.Client
 }
 
-func NewPredictionService(baseURL string) *PredictionService {
-	return &PredictionService{
+func NewAIService(baseURL string) *AIService {
+	return &AIService{
 		baseURL: baseURL,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
@@ -35,6 +35,10 @@ var allowedPredictionTypes = map[string]bool{
 	"contribution_latam":    true,
 	"national_poverty":      true,
 	"poverty_by_age":        true,
+	"department_poverty":    true,
+	"multiple_departments":  true,
+	"household_poverty":     true,
+	"multiple_households":   true,
 }
 
 var ErrPredictionTypeNotAllowed = errors.New("tipo de predicción no permitido")
@@ -48,7 +52,7 @@ func (e *PredictionUpstreamError) Error() string {
 	return fmt.Sprintf("el servicio de IA respondió con error (%d): %s", e.StatusCode, e.Body)
 }
 
-func (ps *PredictionService) Predict(predictionType string, payload map[string]interface{}) (map[string]interface{}, error) {
+func (ai *AIService) Predict(predictionType string, payload map[string]interface{}) (map[string]interface{}, error) {
 	if !allowedPredictionTypes[predictionType] {
 		return nil, ErrPredictionTypeNotAllowed
 	}
@@ -58,7 +62,7 @@ func (ps *PredictionService) Predict(predictionType string, payload map[string]i
 		return nil, fmt.Errorf("payload inválido: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/predict/%s", ps.baseURL, predictionType)
+	url := fmt.Sprintf("%s/predict/%s", ai.baseURL, predictionType)
 
 	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
 	if err != nil {
@@ -66,7 +70,7 @@ func (ps *PredictionService) Predict(predictionType string, payload map[string]i
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := ps.httpClient.Do(req)
+	resp, err := ai.httpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("no se pudo contactar al servicio de IA: %w", err)
 	}

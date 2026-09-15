@@ -66,6 +66,7 @@ APP_ENV=development
 APP_NAME=PATO API Gateway
 
 USER_SERVICE_URL=http://tu_url:8081
+AI_SERVICE_URL=http://tu_url:8000
 
 APP_VALKEY_ADDR=tu_ip:6379
 APP_VALKEY_USER=tu_usuario_valkey
